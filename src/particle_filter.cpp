@@ -89,6 +89,25 @@ void ParticleFilter::DataAssociation(vector<LandmarkObs> predicted, vector<Landm
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
 
+	double distance;
+	double min_distance = 1e6;
+
+	for (int i = 0; i < observations.size(); i++) {
+
+		for (int j = 0; j < predicted.size(); j++) {
+
+			distance = dist(observations[i].x, observations[i].y,
+			                predicted[i].x, predicted[i].y);
+
+			if (distance < min_distance) {
+				min_distance = distance;
+			}
+
+		}
+
+	}
+
+
 }
 
 void ParticleFilter::UpdateWeights(double sensor_range, double std_landmark[], 
@@ -104,6 +123,8 @@ void ParticleFilter::UpdateWeights(double sensor_range, double std_landmark[],
 	//   3.33. Note that you'll need to switch the minus sign in that equation to a plus to account 
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
+
+
 }
 
 void ParticleFilter::Resample() {
