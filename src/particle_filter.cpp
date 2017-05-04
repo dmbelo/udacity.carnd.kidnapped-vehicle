@@ -12,11 +12,33 @@
 
 #include "particle_filter.h"
 
+using namespace std;
+
+
+
 void ParticleFilter::Initialize(double x, double y, double theta, double std[]) {
 	// TODO: Set the number of particles. Initialize all particles to first position (based on estimates of 
 	//   x, y, theta and their uncertainties from GPS) and all weights to 1. 
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
+
+	default_random_engine gen;
+  	normal_distribution<double> N_x(x, std[0]);
+	normal_distribution<double> N_y(y, std[1]);
+	normal_distribution<double> N_theta(theta, std[2]);
+
+	num_particles = 500;
+	Particle p;
+
+	for (int i = 0; i < num_particles; i++) {
+
+		p.x = N_x(gen);
+		p.y = N_y(gen);
+		p.theta = N_theta(gen);
+		p.weight = 1;
+		particles.push_back(p);
+
+	}
 
 }
 
@@ -28,7 +50,7 @@ void ParticleFilter::Prediction(double delta_t, double std_pos[], double velocit
 
 }
 
-void ParticleFilter::DataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
+void ParticleFilter::DataAssociation(vector<LandmarkObs> predicted, vector<LandmarkObs>& observations) {
 	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
@@ -37,7 +59,7 @@ void ParticleFilter::DataAssociation(std::vector<LandmarkObs> predicted, std::ve
 }
 
 void ParticleFilter::UpdateWeights(double sensor_range, double std_landmark[], 
-		std::vector<LandmarkObs> observations, Map map_landmarks) {
+		vector<LandmarkObs> observations, Map map_landmarks) {
 	// TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
 	//   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
 	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
@@ -58,11 +80,11 @@ void ParticleFilter::Resample() {
 
 }
 
-void ParticleFilter::Write(std::string filename) {
+void ParticleFilter::Write(string filename) {
 
 	// You don't need to modify this file.
-	std::ofstream dataFile;
-	dataFile.open(filename, std::ios::app);
+	ofstream dataFile;
+	dataFile.open(filename, ios::app);
 	
 	for (int i = 0; i < num_particles; ++i) {
 
