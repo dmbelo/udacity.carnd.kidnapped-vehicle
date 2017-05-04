@@ -42,11 +42,44 @@ void ParticleFilter::Initialize(double x, double y, double theta, double std[]) 
 
 }
 
-void ParticleFilter::Prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
+void ParticleFilter::Prediction(double dt, double std[], double v, double r) {
 	// TODO: Add measurements to each particle and add random Gaussian noise.
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
+
+	// Add noise to account for uncertainty in control inputs
+	default_random_engine gen;
+
+	for (int i = 0; i < num_particles; i++) {
+
+		double x = particles[i].x;
+		double y = particles[i].y;
+		double theta = particles[i].theta;
+		normal_distribution<double> N_x(x, std[0]);
+		normal_distribution<double> N_y(y, std[1]);
+		normal_distribution<double> N_theta(theta, std[2]);
+
+		// Avoid divide by zero
+		if (fabs(r) > 1e-3) {
+
+			double tmp1 = v / r;
+			double tmp2 = theta + r * dt;
+			particles[i].x += tmp1 * (sin(tmp2) - sin(theta)) + N_x(gen);
+			particles[i].y += tmp1 * (cos(theta) - cos(tmp2)) + N_y(gen);
+			particles[i].theta += r * dt + N_theta(gen);
+
+		}
+		else {
+
+			particles[i].x += v * dt * cos(theta) + N_x(gen);
+			particles[i].y += v * dt * sin(theta) + N_y(gen);
+			particles[i].theta += theta + N_theta(gen);
+
+		}
+		
+
+	}
 
 }
 

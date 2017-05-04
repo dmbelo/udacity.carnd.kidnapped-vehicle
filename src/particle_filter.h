@@ -60,13 +60,13 @@ public:
 	/**
 	 * prediction Predicts the state for the next time step
 	 *   using the process model.
-	 * @param delta_t Time between time step t and t+1 in measurements [s]
+	 * @param dt Time between time step t and t+1 in measurements [s]
 	 * @param std_pos[] Array of dimension 3 [standard deviation of x [m], standard deviation of y [m]
 	 *   standard deviation of yaw [rad]]
 	 * @param velocity Velocity of car from t to t+1 [m/s]
 	 * @param yaw_rate Yaw rate of car from t to t+1 [rad/s]
 	 */
-	void Prediction(double delta_t, double std_pos[], double velocity, double yaw_rate);
+	void Prediction(double dt, double std[], double v, double r);
 	
 	/**
 	 * dataAssociation Finds which observations correspond to which landmarks (likely by using
