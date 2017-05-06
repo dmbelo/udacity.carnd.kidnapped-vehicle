@@ -124,6 +124,21 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
 
+	for (int i = 0; i < particles.size(); i++) {
+
+		vector<Map::single_landmark_s> landmarks_in_range;
+		for (int j = 0; j < map_landmarks.landmark_list.size(); j++) {
+
+			if (dist(particles[i].x, map_landmarks.landmark_list[j].x_f, particles[i].y, map_landmarks.landmark_list[j].y_f) < sensor_range) {
+
+				landmarks_in_range.push_back(map_landmarks.landmark_list[j]);
+
+			}
+
+		}
+
+	}
+
 
 }
 
