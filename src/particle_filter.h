@@ -18,7 +18,6 @@ struct Particle {
 	double y;
 	double theta;
 	double weight;
-
 };
 
 
@@ -27,6 +26,8 @@ class ParticleFilter {
 	
 	// Number of particles to draw
 	int num_particles; 
+	
+	
 	
 	// Flag, if filter is initialized
 	bool is_initialized;
@@ -55,18 +56,18 @@ public:
 	 * @param std[] Array of dimension 3 [standard deviation of x [m], standard deviation of y [m]
 	 *   standard deviation of yaw [rad]]
 	 */
-	void Initialize(double x, double y, double theta, double std[]);
+	void init(double x, double y, double theta, double std[]);
 
 	/**
 	 * prediction Predicts the state for the next time step
 	 *   using the process model.
-	 * @param dt Time between time step t and t+1 in measurements [s]
+	 * @param delta_t Time between time step t and t+1 in measurements [s]
 	 * @param std_pos[] Array of dimension 3 [standard deviation of x [m], standard deviation of y [m]
 	 *   standard deviation of yaw [rad]]
 	 * @param velocity Velocity of car from t to t+1 [m/s]
 	 * @param yaw_rate Yaw rate of car from t to t+1 [rad/s]
 	 */
-	void Prediction(double dt, double std[], double v, double r);
+	void prediction(double delta_t, double std_pos[], double velocity, double yaw_rate);
 	
 	/**
 	 * dataAssociation Finds which observations correspond to which landmarks (likely by using
@@ -74,7 +75,7 @@ public:
 	 * @param predicted Vector of predicted landmark observations
 	 * @param observations Vector of landmark observations
 	 */
-	void DataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations);
+	void dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations);
 	
 	/**
 	 * updateWeights Updates the weights for each particle based on the likelihood of the 
@@ -85,20 +86,20 @@ public:
 	 * @param observations Vector of landmark observations
 	 * @param map Map class containing map landmarks
 	 */
-	void UpdateWeights(double sensor_range, double std_landmark[], std::vector<LandmarkObs> observations,
+	void updateWeights(double sensor_range, double std_landmark[], std::vector<LandmarkObs> observations,
 			Map map_landmarks);
 	
 	/**
 	 * resample Resamples from the updated set of particles to form
 	 *   the new set of particles.
 	 */
-	void Resample();
+	void resample();
 	
 	/*
 	 * write Writes particle positions to a file.
 	 * @param filename File to write particle positions to.
 	 */
-	void Write(std::string filename);
+	void write(std::string filename);
 	
 	/**
 	 * initialized Returns whether particle filter is initialized yet or not.
