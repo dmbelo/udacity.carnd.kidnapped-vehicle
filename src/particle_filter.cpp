@@ -100,7 +100,9 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted, vector<Landm
 			                predicted[i].x, predicted[i].y);
 
 			if (distance < min_distance) {
+
 				min_distance = distance;
+
 			}
 
 		}
@@ -126,19 +128,43 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 	for (int i = 0; i < particles.size(); i++) {
 
-		vector<Map::single_landmark_s> landmarks_in_range;
+		double x_p = particles[i].x;
+		double y_p = particles[i].y;
+		double theta_p = particles[i].theta;
+		double costheta = cos(theta_p);
+		double sintheta = sin(theta_p);
+
+		vector<LandmarkObs> landmarks_in_range;
+		LandmarkObs landmark;
+
 		for (int j = 0; j < map_landmarks.landmark_list.size(); j++) {
 
-			if (dist(particles[i].x, map_landmarks.landmark_list[j].x_f, particles[i].y, map_landmarks.landmark_list[j].y_f) < sensor_range) {
+			if (dist(x_p, map_landmarks.landmark_list[j].x_f,
+					 y_p, map_landmarks.landmark_list[j].y_f) < sensor_range) {
 
-				landmarks_in_range.push_back(map_landmarks.landmark_list[j]);
+				landmark.id = map_landmarks.landmark_list[j].id_i;
+				landmark.x = map_landmarks.landmark_list[j].x_f;
+				landmark.y = map_landmarks.landmark_list[j].y_f;
+				landmarks_in_range.push_back(landmark);
 
 			}
 
 		}
 
-	}
+		// Convert observations from vehicle to global workspace
+		for (int j = 0; j < observations.size(); i++) {
 
+			double x_m = observations[j].x;
+			double y_m = observations[j].y;
+
+			observations[j].x = x_p + x_m * costheta - y_m * sintheta;
+			observations[j].y = y_p + x_m * sintheta + y_m * costheta;
+
+		}
+
+		dataAssociation(landmarks_in_range, observations);
+
+	}	
 
 }
 
