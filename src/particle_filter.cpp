@@ -164,6 +164,18 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 		dataAssociation(landmarks_in_range, observations);
 
+		for (int j = 0; j < landmarks_in_range.size(); j++) {
+
+			double dx = x - x_mu;
+			double dy = y - y_mu;
+			double std_x = std_landmark[0];
+			double std_y = std_landmark[1];
+			double num = exp(-0.5 * (dx * dx / (std_x * std_x) + dy * dy / (std_y * std_y)));
+			double den = 2 * M_PI * std_x * std_y;
+			double prob = num / den;
+
+		}
+
 	}	
 
 }
