@@ -27,7 +27,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	normal_distribution<double> N_y(y, std[1]);
 	normal_distribution<double> N_theta(theta, std[2]);
 
-	num_particles = 500;
+	num_particles = 10;
 	Particle p;
 
 	for (int i = 0; i < num_particles; i++) {
@@ -37,8 +37,11 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		p.theta = N_theta(gen);
 		p.weight = 1;
 		particles.push_back(p);
+		weights.push_back(0.0);
 
 	}
+
+	is_initialized = true;
 
 }
 
@@ -83,7 +86,7 @@ void ParticleFilter::prediction(double dt, double std[], double v, double r) {
 
 }
 
-void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted, vector<LandmarkObs>& observations) {
+void ParticleFilter::dataAssociation(std::map<int, Map::single_landmark_s> predicted, vector<LandmarkObs>& observations) {
 	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
@@ -97,7 +100,7 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted, vector<Landm
 		for (int j = 0; j < predicted.size(); j++) {
 
 			distance = dist(observations[i].x, observations[i].y,
-			                predicted[i].x, predicted[i].y);
+			                predicted[i].x_f, predicted[i].y_f);
 
 			if (distance < min_distance) {
 
@@ -126,45 +129,62 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
 
+	// LandmarkObs landmark;
+
+	double x_p, y_p, theta_p, costheta, sintheta;
+
 	for (int i = 0; i < particles.size(); i++) {
 
-		double x_p = particles[i].x;
-		double y_p = particles[i].y;
-		double theta_p = particles[i].theta;
-		double costheta = cos(theta_p);
-		double sintheta = sin(theta_p);
+		x_p = particles[i].x;
+		y_p = particles[i].y;
+		theta_p = particles[i].theta;
+		costheta = cos(theta_p);
+		sintheta = sin(theta_p);
 
-		vector<LandmarkObs> landmarks_in_range;
-		LandmarkObs landmark;
+		cout << "Particle : " << i << " sin(theta): " << sintheta << endl;
+
+		// Find landmarks in sensor range
+		std::map<int, Map::single_landmark_s> landmarks_in_range;
 
 		for (int j = 0; j < map_landmarks.landmark_list.size(); j++) {
 
 			if (dist(x_p, map_landmarks.landmark_list[j].x_f,
 					 y_p, map_landmarks.landmark_list[j].y_f) < sensor_range) {
 
-				landmark.id = map_landmarks.landmark_list[j].id_i;
-				landmark.x = map_landmarks.landmark_list[j].x_f;
-				landmark.y = map_landmarks.landmark_list[j].y_f;
-				landmarks_in_range.push_back(landmark);
+				landmarks_in_range.insert(std::make_pair(map_landmarks.landmark_list[j].id_i,
+				                           map_landmarks.landmark_list[j]));
+
+				cout << "j: " << j << endl;
 
 			}
 
 		}
 
 		// Convert observations from vehicle to global workspace
-		for (int j = 0; j < observations.size(); i++) {
+		for (int j = 0; j < observations.size(); j++) {
 
 			double x_m = observations[j].x;
 			double y_m = observations[j].y;
+
+			cout << "j: " << j << endl;
 
 			observations[j].x = x_p + x_m * costheta - y_m * sintheta;
 			observations[j].y = y_p + x_m * sintheta + y_m * costheta;
 
 		}
 
+		cout << "About to associate data" << endl;
+
 		dataAssociation(landmarks_in_range, observations);
 
-		for (int j = 0; j < landmarks_in_range.size(); j++) {
+		double w = 1.0; //reset the weight of the particle
+
+		for (const auto obs:observations) {
+
+			double x = landmarks_in_range[obs.id].x_f;
+			double y = landmarks_in_range[obs.id].y_f;
+			double x_mu = obs.x;
+			double y_mu = obs.y;
 
 			double dx = x - x_mu;
 			double dy = y - y_mu;
@@ -172,9 +192,12 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			double std_y = std_landmark[1];
 			double num = exp(-0.5 * (dx * dx / (std_x * std_x) + dy * dy / (std_y * std_y)));
 			double den = 2 * M_PI * std_x * std_y;
-			double prob = num / den;
+
+			w *= num / den;
 
 		}
+
+		weights[i] = w; // Assign to weight of ith particle
 
 	}	
 
