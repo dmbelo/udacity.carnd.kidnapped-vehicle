@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <iostream>
 #include <numeric>
+#include <map>
 
 #include "particle_filter.h"
 
@@ -86,7 +87,7 @@ void ParticleFilter::prediction(double dt, double std[], double v, double r) {
 
 }
 
-void ParticleFilter::dataAssociation(std::map<int, Map::single_landmark_s> predicted, vector<LandmarkObs>& observations) {
+void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, vector<LandmarkObs>& observations) {
 	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
@@ -102,12 +103,12 @@ void ParticleFilter::dataAssociation(std::map<int, Map::single_landmark_s> predi
 		for (int j = 0; j < observations.size(); j++) {
 
 			distance = dist(observations[j].x, observations[j].y,
-			                predicted[i].x_f, predicted[i].y_f);
+			                predicted[i].x, predicted[i].y);
 
 			if (distance < min_distance) {
 
+				predicted[i].id = observations[j].id;
 				min_distance = distance;
-				predicted[i].
 
 			}
 
@@ -144,42 +145,47 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		costheta = cos(theta_p);
 		sintheta = sin(theta_p);
 
+		// Convert observations from vehicle to global coordinate system
+		std::map<int, LandmarkObs> transformed_observations_map;
+		std::vector<LandmarkObs> transformed_observations;
+		transformed_observations.resize(observations.size());
+
+		for (int j = 0; j < observations.size(); j++) {
+
+			LandmarkObs tmp;
+			tmp.id = observations[j].id;
+			tmp.x = x_p + observations[j].x * costheta - observations[j].y * sintheta; 
+			tmp.y = y_p + observations[j].x * sintheta + observations[j].y * costheta;
+			transformed_observations[j] = tmp;
+			transformed_observations_map.insert(std::make_pair(tmp.id, tmp));
+
+		}
+
 		// Find landmarks in sensor range
-		std::map<int, Map::single_landmark_s> landmarks_in_range;
+		std::vector<LandmarkObs> landmarks_in_range;
 		for (int j = 0; j < map_landmarks.landmark_list.size(); j++) {
 
 			if (dist(x_p, map_landmarks.landmark_list[j].x_f,
 					 y_p, map_landmarks.landmark_list[j].y_f) < sensor_range) {
-	
 
-				landmarks_in_range.insert(std::make_pair(map_landmarks.landmark_list[j].id_i,
-				                           map_landmarks.landmark_list[j]));
+				landmarks_in_range.push_back(LandmarkObs{map_landmarks.landmark_list[j].id_i,
+				                                         map_landmarks.landmark_list[j].x_f,
+														 map_landmarks.landmark_list[j].y_f });
 
 			}
 
 		}
 
-		// Convert observations from vehicle to global workspace
-		for (int j = 0; j < observations.size(); j++) {
+		dataAssociation(landmarks_in_range, transformed_observations);
 
-			double x_m = observations[j].x;
-			double y_m = observations[j].y;
+		particles[i].weight = 1.0; //reset the weight of the particle
 
-			observations[j].x = x_p + x_m * costheta - y_m * sintheta;
-			observations[j].y = y_p + x_m * sintheta + y_m * costheta;
+		for (const auto landmark:landmarks_in_range) {
 
-		}
-
-		dataAssociation(landmarks_in_range, observations);
-
-		double w = 1.0; //reset the weight of the particle
-
-		for (const auto obs:observations) {
-
-			double x = landmarks_in_range[obs.id].x_f;
-			double y = landmarks_in_range[obs.id].y_f;
-			double x_mu = obs.x;
-			double y_mu = obs.y;
+			double x = landmark.x;
+			double y = landmark.y;
+			double x_mu = transformed_observations_map[landmark.id].x;
+			double y_mu = transformed_observations_map[landmark.id].y;
 
 			double dx = x - x_mu;
 			double dy = y - y_mu;
@@ -188,11 +194,11 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			double num = exp(-0.5 * (dx * dx / (std_x * std_x) + dy * dy / (std_y * std_y)));
 			double den = 2 * M_PI * std_x * std_y;
 
-			w *= num / den;
+			particles[i].weight *= num / den;
 
 		}
 
-		weights[i] = w; // Assign to weight of ith particle
+		weights[i] = particles[i].weight; // Assign to weight of ith particle
 
 	}	
 
@@ -202,6 +208,18 @@ void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+
+	std::random_device rd;
+    std::mt19937 gen(rd());
+    std::discrete_distribution<> d(weights.begin(), weights.end());
+    vector<Particle> particles_new;
+
+    particles_new.resize(num_particles);
+    for (int n=0; n < num_particles; ++n) {
+        particles_new[n] = particles[d(gen)];
+    }
+
+    particles = particles_new;
 
 }
 
