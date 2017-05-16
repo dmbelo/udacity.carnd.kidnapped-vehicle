@@ -93,18 +93,21 @@ void ParticleFilter::dataAssociation(std::map<int, Map::single_landmark_s> predi
 	//   implement this method and use it as a helper during the updateWeights phase.
 
 	double distance;
-	double min_distance = 1e6;
+	double min_distance;
 
-	for (int i = 0; i < observations.size(); i++) {
+	for (int i = 0; i < predicted.size(); i++) {
 
-		for (int j = 0; j < predicted.size(); j++) {
+		min_distance = 1e6;
 
-			distance = dist(observations[i].x, observations[i].y,
+		for (int j = 0; j < observations.size(); j++) {
+
+			distance = dist(observations[j].x, observations[j].y,
 			                predicted[i].x_f, predicted[i].y_f);
 
 			if (distance < min_distance) {
 
 				min_distance = distance;
+				predicted[i].
 
 			}
 
@@ -141,20 +144,16 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		costheta = cos(theta_p);
 		sintheta = sin(theta_p);
 
-		cout << "Particle : " << i << " sin(theta): " << sintheta << endl;
-
 		// Find landmarks in sensor range
 		std::map<int, Map::single_landmark_s> landmarks_in_range;
-
 		for (int j = 0; j < map_landmarks.landmark_list.size(); j++) {
 
 			if (dist(x_p, map_landmarks.landmark_list[j].x_f,
 					 y_p, map_landmarks.landmark_list[j].y_f) < sensor_range) {
+	
 
 				landmarks_in_range.insert(std::make_pair(map_landmarks.landmark_list[j].id_i,
 				                           map_landmarks.landmark_list[j]));
-
-				cout << "j: " << j << endl;
 
 			}
 
@@ -166,14 +165,10 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			double x_m = observations[j].x;
 			double y_m = observations[j].y;
 
-			cout << "j: " << j << endl;
-
 			observations[j].x = x_p + x_m * costheta - y_m * sintheta;
 			observations[j].y = y_p + x_m * sintheta + y_m * costheta;
 
 		}
-
-		cout << "About to associate data" << endl;
 
 		dataAssociation(landmarks_in_range, observations);
 
