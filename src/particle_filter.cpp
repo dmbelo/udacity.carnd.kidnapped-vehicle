@@ -10,11 +10,13 @@
 #include <iostream>
 #include <numeric>
 #include <map>
+#include <math.h>
 
 #include "particle_filter.h"
 
-using namespace std;
+#define _USE_MATH_DEFINES
 
+using namespace std;
 
 
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
@@ -28,19 +30,21 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	normal_distribution<double> N_y(y, std[1]);
 	normal_distribution<double> N_theta(theta, std[2]);
 
-	num_particles = 10;
+	num_particles = 1000;
 	Particle p;
 
 	for (int i = 0; i < num_particles; i++) {
 
+		p.id = i;
 		p.x = N_x(gen);
 		p.y = N_y(gen);
 		p.theta = N_theta(gen);
 		p.weight = 1;
 		particles.push_back(p);
-		weights.push_back(0.0);
 
 	}
+
+	weights.resize(num_particles);
 
 	is_initialized = true;
 
@@ -96,18 +100,17 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, vector<
 	double distance;
 	double min_distance;
 
-	for (int i = 0; i < predicted.size(); i++) {
+	for (int i = 0; i < observations.size(); i++) {
 
 		min_distance = 1e6;
 
-		for (int j = 0; j < observations.size(); j++) {
+		for (int j = 0; j < predicted.size(); j++) {
 
-			distance = dist(observations[j].x, observations[j].y,
-			                predicted[i].x, predicted[i].y);
+			distance = dist(observations[j].x, observations[j].y, predicted[i].x, predicted[i].y);
 
 			if (distance < min_distance) {
 
-				predicted[i].id = observations[j].id;
+				observations[i].id = predicted[j].id;
 				min_distance = distance;
 
 			}
@@ -120,7 +123,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, vector<
 }
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
-		vector<LandmarkObs> observations, Map map_landmarks) {
+		                           vector<LandmarkObs> observations, Map map_landmarks) {
 	// TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
 	//   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
 	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
@@ -133,9 +136,19 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   for the fact that the map's y-axis actually points downwards.)
 	//   http://planning.cs.uiuc.edu/node99.html
 
-	// LandmarkObs landmark;
-
 	double x_p, y_p, theta_p, costheta, sintheta;
+
+	// Create a landmarks map for access by landmark id
+	std::map<int, LandmarkObs> landmarks_id_map;
+	
+	for (int i = 0; i < map_landmarks.landmark_list.size(); i++) {
+		
+		landmarks_id_map.insert(std::make_pair(map_landmarks.landmark_list[i].id_i,
+		                                       LandmarkObs{map_landmarks.landmark_list[i].id_i,
+				                                           map_landmarks.landmark_list[i].x_f,
+														   map_landmarks.landmark_list[i].y_f }));
+
+	}
 
 	for (int i = 0; i < particles.size(); i++) {
 
@@ -145,8 +158,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		costheta = cos(theta_p);
 		sintheta = sin(theta_p);
 
-		// Convert observations from vehicle to global coordinate system
-		std::map<int, LandmarkObs> transformed_observations_map;
+		// Convert observations from vehicle to global coordinate system		
 		std::vector<LandmarkObs> transformed_observations;
 		transformed_observations.resize(observations.size());
 
@@ -156,8 +168,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			tmp.id = observations[j].id;
 			tmp.x = x_p + observations[j].x * costheta - observations[j].y * sintheta; 
 			tmp.y = y_p + observations[j].x * sintheta + observations[j].y * costheta;
-			transformed_observations[j] = tmp;
-			transformed_observations_map.insert(std::make_pair(tmp.id, tmp));
+			transformed_observations[j] = tmp;			
 
 		}
 
@@ -165,8 +176,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		std::vector<LandmarkObs> landmarks_in_range;
 		for (int j = 0; j < map_landmarks.landmark_list.size(); j++) {
 
-			if (dist(x_p, map_landmarks.landmark_list[j].x_f,
-					 y_p, map_landmarks.landmark_list[j].y_f) < sensor_range) {
+			double distance = dist(x_p, y_p, map_landmarks.landmark_list[j].x_f, map_landmarks.landmark_list[j].y_f);
+			if (distance < sensor_range) {
 
 				landmarks_in_range.push_back(LandmarkObs{map_landmarks.landmark_list[j].id_i,
 				                                         map_landmarks.landmark_list[j].x_f,
@@ -176,29 +187,39 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 		}
 
-		dataAssociation(landmarks_in_range, transformed_observations);
+		if (landmarks_in_range.size() > 0) {
 
-		particles[i].weight = 1.0; //reset the weight of the particle
+			dataAssociation(landmarks_in_range, transformed_observations);
 
-		for (const auto landmark:landmarks_in_range) {
+			particles[i].weight = 1.0; //reset the weight of the particle
 
-			double x = landmark.x;
-			double y = landmark.y;
-			double x_mu = transformed_observations_map[landmark.id].x;
-			double y_mu = transformed_observations_map[landmark.id].y;
+			for (const auto obs:transformed_observations) {
 
-			double dx = x - x_mu;
-			double dy = y - y_mu;
-			double std_x = std_landmark[0];
-			double std_y = std_landmark[1];
-			double num = exp(-0.5 * (dx * dx / (std_x * std_x) + dy * dy / (std_y * std_y)));
-			double den = 2 * M_PI * std_x * std_y;
+				double x = landmarks_id_map[obs.id].x;
+				double y = landmarks_id_map[obs.id].y;
+				double x_mu = obs.x;
+				double y_mu = obs.y;
 
-			particles[i].weight *= num / den;
+				double dx = x - x_mu;
+				double dy = y - y_mu;
+				double std_x = std_landmark[0];
+				double std_y = std_landmark[1];
+				double num = exp(-0.5 * (dx * dx / (std_x * std_x) + dy * dy / (std_y * std_y)));
+				double den = 2 * M_PI * std_x * std_y;
+				double prob = num/den;
+
+				particles[i].weight *= prob;
+
+			}
+
+			weights[i] = particles[i].weight; // Assign to weight of ith particle
 
 		}
+		else{
+						
+			weights[i] = 0.0;
 
-		weights[i] = particles[i].weight; // Assign to weight of ith particle
+		}		
 
 	}	
 
